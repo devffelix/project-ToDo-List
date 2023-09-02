@@ -6,7 +6,7 @@ const { describe } = require('node:test')
 let tasks= []
 
 //Atualiza o clima a cada 30 minutos
-const updateWeatherIntercal= setInterval(() => {
+const updateWeatherInterval= setInterval(() => {
     fetchWeather()
 },30*60*1000) //30 minutos em milisegundos
 
@@ -18,7 +18,7 @@ async function fetchWeather(){
         const url= `https://www.metaweather.com/api/`
 
         const response= await axios.get(url)
-        const weatherData= response.weatherData
+        const weatherData= response.data
 
         console.log(`Clima em ${city}: ${weatherData.main.temp}*C, ${weatherData.weather[0].description}`)
     } catch(error){
@@ -29,9 +29,14 @@ async function fetchWeather(){
 
 //cria uma tarefa
 function createTask(description) {
-    const task= { id: tasks.lenght + 1, description, done: false}
-    tasks.push(task)
-    console.log('Tarefa "${description}" criada com sucesso!')
+    if (!description){
+        console.error('Descrição da tarefa não fornecida.')
+        return
+    }
+
+    const task= {id: tasks.lenght + 1, description, done: false }
+    tasks.push(task);
+    console.log(`Tarefa "${description}" criada com sucesso!`)
 } 
 
 //Lista todas as tarefas
@@ -45,23 +50,23 @@ function listTasks(){
 //marca uma tarefa como concluída
 function completeTask(id){
     const task= tasks.find(task => task.id === id)
-    if (task){
-        task.done- true
-        console.log(`Tarefa "${task.description}" marcada como concluída"`)
-    } else {
-        console.log("Tarefa não encontrada")
+    if (!task){
+        console.error('Tarefa não encontrada.')
+        return
     }
+    task.done= true
+    console.log(`Tarefa "${task.description}" marcada como concluída"`)
 }
 
 //exclui uma tarefa
 function deleteTask(id){
     const taskIndex = tasks.findIndex(task => task.id === id)
-    if (taskIndex !== -1){
-        const deletedTask = tasks.splice(taskIndex, 1)[0]
-        console.log(`Tarefa "${deleteTask.description} excluída!`)
-    } else {
-        console.log(`Tarefa não encontrada.`)
-    }
+    if (taskIndex === -1){
+       console.error('Tarefa não encontrada')
+       return
+    } 
+    const deletedTask = tasks.splice(taskIndex, 1)[0]
+    console.log(`Tarefa "${deleteTask.description} excluída!`)
 }
 
 
@@ -89,13 +94,34 @@ const server = http.createServer((req, res) => {
             res.writeHead(201, {'Content-Type' : 'text/plain'})
             res.end('Tarefa criada com sucesso! \n')
         })
-    } else if (req.method==='PUT' && req.url.startsWith('/tasks')){
-        const taskId= parseInt(req.url.split('/')[2])
+        try{
+            const taskData = JSON.parse(data)
+            createTask(taskData.description)
+            res.writeHead(201,{'Content-Type':'text/plain'})
+            res.end('Tarefa criada com sucesso! \n')
+        } catch (error){
+            console.error('Erro ao criar a tarefa:', error.message)
+            res.writeHead(400, {'Content-Type':'text/plain'})
+            res.end('Erro ao criar tarefa. \n')
+        }}else if (req.method==='PUT' && req.url.startsWith('/tasks')){
+            const taskId= parseInt(req.url.split('/')[2])
+            if (isNaN(taskId)){
+                console.error('ID da tarefa inválido')
+                res.writeHead(400, {'Content-Type':'text/plain'})
+                res.end('ID da tarefa inválido. \n')
+                return
+            }
         completeTask(taskId)
         res.writeHead(200, {'Content-Type':'text/plain'})
         res.end('Tarefa marcada como concluída \n')
     } else if (req.method === 'DELETE' && req.url.startsWith('/tasks/')){
         const taskId= parseInt(req.url.split('/')[2]);
+        if(isNaN(taskId)){
+            console.error('ID da tarefa inválido.')
+            res.writeHead(400, {'Content-Type':'text/plain'})
+            res.end('ID da tarefa inválido.\n')
+            return
+        }
         deleteTask(taskId)
         res.writeHead(200, {'Content-Type':'text/plain'})
         res.end('Tarefa excluída!. \n')
